@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Cracking Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.0.0/dist/socket.io.min.js"></script>
+
+    <script>
+        var socket = io.connect('http://localhost:5013');
+
+        // Function to start password cracking process
+        function crackPassword() {
+            $('#cracking-status').text('Cracking password, please wait...');
+            $('#cracked-password').hide(); // Hide the cracked password display initially
+            $('#progress-container').empty(); // Clear the existing progress bars
+
+            $.get("/crack_password", function(data) {
+                $('#cracking-status').text(data.status);
+                if (data.password) {
+                    $('#cracked-password').text('Cracked Password: ' + data.password);
+                    $('#cracked-password').show();
+                    $('#time-taken').text('Time Taken: ' + data.time); // Display the time taken
+                    $('#time-taken').show(); // Show the time taken
+                }
+            });
+        }
+
+        // Handle progress updates from each process
+        socket.on('progress', function(data) {
+            var processId = data.process_id;
+            var progress = data.progress;
+
+            // Create a new progress bar for each process if it doesn't exist
+            if (!$('#progress-container').find('#progress-bar-' + processId).length) {
+                $('#progress-container').append(`
+                    <div class="progress">
+                        <div id="progress-bar-${processId}" class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p id="progress-text-${processId}">Process ${processId}: 0%</p>
+                `);
+            }
+
+            // Update the progress of the respective progress bar
+            $('#progress-bar-' + processId).css('width', progress + '%');
+            $('#progress-bar-' + processId).attr('aria-valuenow', progress);
+            $('#progress-text-' + processId).text('Process ' + processId + ': ' + progress.toFixed(2) + '%');
+        });
+
+        // Listen for the 'password_cracked' event from the backend
+        socket.on('password_cracked', function(data) {
+            $('#cracking-status').text(data.status);
+            if (data.password) {
+                $('#cracked-password').text('Cracked Password: ' + data.password);
+                $('#cracked-password').show();
+                $('#time-taken').text('Time Taken: ' + data.time); // Display the time taken
+                $('#time-taken').show(); // Show the time taken
+            }
+        });
+    </script>
+
+    <style>
+        .container { max-width: 600px; margin-top: 50px; }
+        .response { margin-top: 20px; }
+        .progress-container { margin-top: 20px; }
+        #time-taken { margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Password Cracking Interface</h2>
+        <button class="btn btn-danger" onclick="crackPassword()">Generate and Crack</button>
+        <div id="cracking-status" class="response"></div>
+        
+        <!-- Progress Bar Section -->
+        <div id="progress-container" class="response"></div>
+
+        <div id="cracked-password" class="response" style="display:none;">
+            <p id="cracked-password-value"></p>
+        </div>
+
+        <!-- Time Taken Display -->
+        <div id="time-taken" class="response" style="display:none;"></div>
+    </div>
+</body>
+</html>
